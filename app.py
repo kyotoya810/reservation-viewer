@@ -9,19 +9,24 @@ uploaded_csv = st.file_uploader("予約CSVファイルをアップロードし�
 uploaded_template = st.file_uploader("テンプレートExcelファイル（施設順用）をアップロードしてください", type=["xlsx"])
 
 if uploaded_csv and uploaded_template:
+    # CSVとテンプレート読み込み
     df = pd.read_csv(uploaded_csv)
     template_df = pd.read_excel(uploaded_template)
 
     st.success("CSVファイルとテンプレートを読み込みました！")
 
-    # 日付を選択
+    # テンプレートから施設の並び順を取得（1列目、2行目以降）
+    facility_order = template_df.iloc[1:, 0].dropna().astype(str).tolist()
+
+    # 表示したい日付を選択
     selected_date = st.date_input("表示したい日付を選んでください")
 
     if selected_date:
-        # 日付列をdatetime形式に変換
+        # チェックイン・チェックアウトを日付型に変換
         df['チェックイン'] = pd.to_datetime(df['チェックイン'], errors='coerce')
         df['チェックアウト'] = pd.to_datetime(df['チェックアウト'], errors='coerce')
 
+        # 結果リスト
         results = []
 
         for _, row in df.iterrows():
@@ -42,7 +47,7 @@ if uploaded_csv and uploaded_template:
             if status:
                 date_range = f"{checkin.day}-{checkout.day}"
                 results.append({
-                    "備考": row["物件名"],
+                    "備考": str(row["物件名"]),
                     "O": "●" if status == "O" else "",
                     "S": "●" if status == "S" else "",
                     "I": "●" if status == "I" else "",
@@ -54,11 +59,11 @@ if uploaded_csv and uploaded_template:
 
         result_df = pd.DataFrame(results)
 
-        # 施設順に並び替え（テンプレートの「備考」列の順番）
-        facility_order = template_df["備考"].dropna().tolist()
+        # 並び順をテンプレートの施設順に合わせる
         result_df["備考"] = pd.Categorical(result_df["備考"], categories=facility_order, ordered=True)
         result_df = result_df.sort_values("備考")
 
+        # 表示
         if not result_df.empty:
             st.markdown("### ✅ 表示結果（コピー＆ペースト可能）")
             st.dataframe(result_df, use_container_width=True)
