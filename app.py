@@ -13,24 +13,25 @@ if uploaded_csv and uploaded_template:
 
     st.success("CSVファイルとテンプレートを読み込みました！")
 
-    # 列名をクリーンアップ
+    # 列名・データ整形
     df.columns = df.columns.str.strip()
+    df["物件名"] = df["物件名"].astype(str).str.strip()
+    df['チェックイン'] = pd.to_datetime(df['チェックイン'], errors='coerce')
+    df['チェックアウト'] = pd.to_datetime(df['チェックアウト'], errors='coerce')
 
-    # 施設順（テンプレート2行目以降の1列目）
+    # テンプレートから施設の並び順を取得
     facility_order = template_df.iloc[1:, 0].dropna().astype(str).tolist()
 
     selected_date = st.date_input("表示したい日付を選んでください")
 
     if selected_date:
-        df['チェックイン'] = pd.to_datetime(df['チェックイン'], errors='coerce')
-        df['チェックアウト'] = pd.to_datetime(df['チェックアウト'], errors='coerce')
-        df['物件名'] = df['物件名'].astype(str).str.strip()
-
         output_rows = []
 
         for facility in facility_order:
-            facility_clean = facility.strip()
-            rows = df[df["物件名"] == facility_clean]
+            # 空白を無視して一致させる
+            facility_clean = facility.replace(" ", "").strip()
+            df["比較用物件名"] = df["物件名"].str.replace(" ", "").str.strip()
+            rows = df[df["比較用物件名"] == facility_clean]
 
             o_flag = s_flag = i_flag = False
             info_row = None
@@ -51,13 +52,13 @@ if uploaded_csv and uploaded_template:
                 elif checkout.date() == selected_date:
                     o_flag = True
 
-            # Oのみのときは次の予約を使う
+            # Oのみ → 次の予約を探す
             if o_flag and not (i_flag or s_flag):
                 future_rows = rows[rows["チェックイン"].dt.date > selected_date]
                 if not future_rows.empty:
                     info_row = future_rows.sort_values("チェックイン").iloc[0]
 
-            # 出力（予約がある場合） or 空欄（なければ空欄で出力）
+            # 出力行を構築（予約がなくても行は出す）
             output_rows.append({
                 "備考": facility,
                 "O": "●" if o_flag else "",
