@@ -51,13 +51,26 @@ if uploaded_csv and uploaded_template:
                 elif checkout.date() == selected_date:
                     o_flag = True
 
-            # Oのみ or 完全に該当なし → 将来予約を探す
+            # Oのみ or 完全該当なし → 将来予約を探す
             if not (i_flag or s_flag):
                 future_rows = rows[rows["チェックイン"].dt.date > selected_date]
                 if not future_rows.empty:
                     info_row = future_rows.sort_values("チェックイン").iloc[0]
-                elif not o_flag:
-                    # 将来予約すらない完全空施設 → 名前に「予約なし」
+                elif o_flag:
+                    # Oのみで将来予約もなし → 予約なし
+                    output_rows.append({
+                        "備考": facility,
+                        "O": "●",
+                        "S": "",
+                        "I": "",
+                        "日程": "",
+                        "人数": "",
+                        "名前": "予約なし",
+                        "媒体": ""
+                    })
+                    continue
+                else:
+                    # 完全に予約なしの施設
                     output_rows.append({
                         "備考": facility,
                         "O": "",
@@ -68,9 +81,9 @@ if uploaded_csv and uploaded_template:
                         "名前": "予約なし",
                         "媒体": ""
                     })
-                    continue  # この時点で1行追加済み
+                    continue
 
-            # 出力（通常）
+            # 通常の出力
             output_rows.append({
                 "備考": facility,
                 "O": "●" if o_flag else "",
